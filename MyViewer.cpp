@@ -6,7 +6,7 @@
 #include <vector>
 
 #include <QtGui/QKeyEvent>
-#include<QDebug>
+#include <QMessageBox>
 
 #include <OpenMesh/Core/IO/MeshIO.hh>
 #include <OpenMesh/Tools/Smoother/JacobiLaplaceSmootherT.hh>
@@ -439,15 +439,9 @@ void MyViewer::find_trangles_18()
         }
     }
     ((MyWindow*) parent)->print_status(QString::number(max_value));
-
-//    plot_face_idx.append(max_face.idx());
-
-//    for(auto ff: mesh.ff_range(max_face)){
-//        if(ff.idx()!=max_face.idx()){
-//            plot_face.append(ff);
-//        }
-//    }
-
+    QMessageBox msg = {};
+    msg.setText(QString::number(max_value));
+    msg.exec();
 
     for(auto v : mesh.fv_range(max_face)){
         for(auto vf : mesh.vf_range(v)){
@@ -466,7 +460,6 @@ void MyViewer::find_trangles_18()
             }
         }
     }
-    QTextStream(stdout) << plot_face.size();
 }
 
 void MyViewer::draw() {
@@ -497,20 +490,21 @@ void MyViewer::draw() {
     for (auto f : mesh.faces()) {
       glBegin(GL_POLYGON);
       for (auto v : mesh.fv_range(f)) {
-        if (visualization == Visualization::MEAN){
+        if (visualization == Visualization::MEAN) {
             glColor3dv(meanMapColor(mesh.data(v).mean));
-        }
-        else if (visualization == Visualization::SLICING)
-          glTexCoord1d(mesh.point(v) | slicing_dir * slicing_scaling);
-        if (plot_face.contains(f)){
-            glColor3dv(Vec(0,0,0));
-        } else {
-            glColor3dv(Vec(1,0,0));
-//            if(max_face == f){
-//                glColor3dv(Vec(1,0,0));
-//            } else{
-//                glColor3dv(Vec(1,1,1));
-//            }
+        } else if (visualization == Visualization::SLICING) {
+            glTexCoord1d(mesh.point(v) | slicing_dir * slicing_scaling);
+        } else if (visualization == Visualization::TASK_18) {
+            if (plot_face.contains(f)){
+                glColor3dv(Vec(1,0,0));
+            } else {
+                glColor3dv(Vec(1,1,1));
+                //            if(max_face == f){
+                //                glColor3dv(Vec(1,0,0));
+                //            } else{
+                //                glColor3dv(Vec(1,1,1));
+                //            }
+            }
         }
         glNormal3dv(mesh.normal(v).data());
         glVertex3dv(mesh.point(v).data());
@@ -708,6 +702,7 @@ void MyViewer::keyPressEvent(QKeyEvent *e) {
       update();
       break;
     case Qt::Key_X:
+      visualization = Visualization::TASK_18;
       find_trangles_18();
       update();
       break;

@@ -8,5 +8,4 @@ moc_*
 qrc_*
 *.stash
 Makefile
-.qglviewer.xml
-
+*.zip

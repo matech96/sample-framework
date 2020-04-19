@@ -29,6 +29,7 @@ public:
   bool openBezier(const std::string &filename, bool update_view = true);
   bool saveBezier(const std::string &filename);
 
+  void find_trangles_18();
 signals:
   void startComputation(QString message);
   void midComputation(int percent);
@@ -105,6 +106,11 @@ private:
     Vec position, grabbed_pos, original_pos;
   } axes;
   std::string last_filename;
+
+  // 18
+  QList<OpenMesh::FaceHandle> plot_face;
+  OpenMesh::FaceHandle max_face;
+  QWidget* parent;
 };
 
 #include "MyViewer.hpp"

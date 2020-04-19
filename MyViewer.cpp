@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <QtGui/QKeyEvent>
+#include<QDebug>
 
 #include <OpenMesh/Core/IO/MeshIO.hh>
 #include <OpenMesh/Tools/Smoother/JacobiLaplaceSmootherT.hh>
@@ -20,13 +21,14 @@
 #endif
 
 #include "MyViewer.h"
+#include "MyWindow.h"
 
 #ifdef _WIN32
 #define GL_CLAMP_TO_EDGE 0x812F
 #define GL_BGRA 0x80E1
 #endif
 
-MyViewer::MyViewer(QWidget *parent) :
+MyViewer::MyViewer(QWidget *parent) : parent(parent),
   QGLViewer(parent), model_type(ModelType::NONE),
   mean_min(0.0), mean_max(0.0), cutoff_ratio(0.05),
   show_control_points(true), show_solid(true), show_wireframe(false),
@@ -40,7 +42,6 @@ MyViewer::MyViewer(QWidget *parent) :
 
 MyViewer::~MyViewer() {
   glDeleteTextures(1, &isophote_texture);
-  glDeleteTextures(1, &environment_texture);
   glDeleteTextures(1, &slicing_texture);
 }
 
@@ -417,6 +418,57 @@ void MyViewer::init() {
   glTexImage1D(GL_TEXTURE_1D, 0, GL_RGB, 2, 0, GL_RGB, GL_UNSIGNED_BYTE_3_3_2, &slicing_img);
 }
 
+void MyViewer::find_trangles_18()
+{
+//    OpenMesh::FaceHandle max_face;
+    double max_value = -1.0;
+    for (OpenMesh::FaceHandle f : mesh.faces()) {
+        if (mesh.is_boundary(f)){
+            continue;
+        }
+        double m = 0.0;
+        double i = 0.0;
+        for (auto v : mesh.fv_range(f)) {
+            m += mesh.data(v).mean;
+            i++;
+        }
+        m /= i;
+        if(m>max_value){
+            max_face = f;
+            max_value = m;
+        }
+    }
+    ((MyWindow*) parent)->print_status(QString::number(max_value));
+
+//    plot_face_idx.append(max_face.idx());
+
+//    for(auto ff: mesh.ff_range(max_face)){
+//        if(ff.idx()!=max_face.idx()){
+//            plot_face.append(ff);
+//        }
+//    }
+
+
+    for(auto v : mesh.fv_range(max_face)){
+        for(auto vf : mesh.vf_range(v)){
+            if(vf == max_face)
+                continue;
+
+            bool ok = true;
+            for(auto ff: mesh.ff_range(max_face)){
+                if (ff == vf){
+                    ok = false;
+                    break;
+                }
+            }
+            if(ok){
+                plot_face.append(vf);
+            }
+        }
+    }
+    QTextStream(stdout) << plot_face.size();
+}
+
 void MyViewer::draw() {
   if (model_type == ModelType::BEZIER_SURFACE && show_control_points)
     drawControlNet();
@@ -441,13 +493,25 @@ void MyViewer::draw() {
       glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
       glEnable(GL_TEXTURE_1D);
     }
+
     for (auto f : mesh.faces()) {
       glBegin(GL_POLYGON);
       for (auto v : mesh.fv_range(f)) {
-        if (visualization == Visualization::MEAN)
-          glColor3dv(meanMapColor(mesh.data(v).mean));
+        if (visualization == Visualization::MEAN){
+            glColor3dv(meanMapColor(mesh.data(v).mean));
+        }
         else if (visualization == Visualization::SLICING)
           glTexCoord1d(mesh.point(v) | slicing_dir * slicing_scaling);
+        if (plot_face.contains(f)){
+            glColor3dv(Vec(0,0,0));
+        } else {
+            glColor3dv(Vec(1,0,0));
+//            if(max_face == f){
+//                glColor3dv(Vec(1,0,0));
+//            } else{
+//                glColor3dv(Vec(1,1,1));
+//            }
+        }
         glNormal3dv(mesh.normal(v).data());
         glVertex3dv(mesh.point(v).data());
       }
@@ -641,6 +705,10 @@ void MyViewer::keyPressEvent(QKeyEvent *e) {
       break;
     case Qt::Key_F:
       fairMesh();
+      update();
+      break;
+    case Qt::Key_X:
+      find_trangles_18();
       update();
       break;
     default:

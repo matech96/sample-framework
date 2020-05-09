@@ -13,7 +13,6 @@ class MyWindow : public QMainWindow {
 
 public:
   explicit MyWindow(QApplication *parent);
-  void print_status(QString text);
   ~MyWindow();
 
 private slots:

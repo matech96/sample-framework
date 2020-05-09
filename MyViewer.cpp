@@ -6,7 +6,6 @@
 #include <vector>
 
 #include <QtGui/QKeyEvent>
-#include <QMessageBox>
 
 #include <OpenMesh/Core/IO/MeshIO.hh>
 #include <OpenMesh/Tools/Smoother/JacobiLaplaceSmootherT.hh>
@@ -21,14 +20,15 @@
 #endif
 
 #include "MyViewer.h"
-#include "MyWindow.h"
 
 #ifdef _WIN32
 #define GL_CLAMP_TO_EDGE 0x812F
 #define GL_BGRA 0x80E1
 #endif
+#include <OpenMesh/Tools/Subdivider/Uniform/Sqrt3T.hh>
+#include <OpenMesh/Tools/Subdivider/Uniform/LoopT.hh>
 
-MyViewer::MyViewer(QWidget *parent) : parent(parent),
+MyViewer::MyViewer(QWidget *parent) :
   QGLViewer(parent), model_type(ModelType::NONE),
   mean_min(0.0), mean_max(0.0), cutoff_ratio(0.05),
   show_control_points(true), show_solid(true), show_wireframe(false),
@@ -418,50 +418,6 @@ void MyViewer::init() {
   glTexImage1D(GL_TEXTURE_1D, 0, GL_RGB, 2, 0, GL_RGB, GL_UNSIGNED_BYTE_3_3_2, &slicing_img);
 }
 
-void MyViewer::find_trangles_18()
-{
-//    OpenMesh::FaceHandle max_face;
-    double max_value = -1.0;
-    for (OpenMesh::FaceHandle f : mesh.faces()) {
-        if (mesh.is_boundary(f)){
-            continue;
-        }
-        double m = 0.0;
-        double i = 0.0;
-        for (auto v : mesh.fv_range(f)) {
-            m += mesh.data(v).mean;
-            i++;
-        }
-        m /= i;
-        if(m>max_value){
-            max_face = f;
-            max_value = m;
-        }
-    }
-    ((MyWindow*) parent)->print_status(QString::number(max_value));
-    QMessageBox msg = {};
-    msg.setText(QString::number(max_value));
-    msg.exec();
-
-    for(auto v : mesh.fv_range(max_face)){
-        for(auto vf : mesh.vf_range(v)){
-            if(vf == max_face)
-                continue;
-
-            bool ok = true;
-            for(auto ff: mesh.ff_range(max_face)){
-                if (ff == vf){
-                    ok = false;
-                    break;
-                }
-            }
-            if(ok){
-                plot_face.append(vf);
-            }
-        }
-    }
-}
-
 void MyViewer::draw() {
   if (model_type == ModelType::BEZIER_SURFACE && show_control_points)
     drawControlNet();
@@ -486,26 +442,13 @@ void MyViewer::draw() {
       glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
       glEnable(GL_TEXTURE_1D);
     }
-
     for (auto f : mesh.faces()) {
       glBegin(GL_POLYGON);
       for (auto v : mesh.fv_range(f)) {
-        if (visualization == Visualization::MEAN) {
-            glColor3dv(meanMapColor(mesh.data(v).mean));
-        } else if (visualization == Visualization::SLICING) {
-            glTexCoord1d(mesh.point(v) | slicing_dir * slicing_scaling);
-        } else if (visualization == Visualization::TASK_18) {
-            if (plot_face.contains(f)){
-                glColor3dv(Vec(1,0,0));
-            } else {
-                glColor3dv(Vec(1,1,1));
-                //            if(max_face == f){
-                //                glColor3dv(Vec(1,0,0));
-                //            } else{
-                //                glColor3dv(Vec(1,1,1));
-                //            }
-            }
-        }
+        if (visualization == Visualization::MEAN)
+          glColor3dv(meanMapColor(mesh.data(v).mean));
+        else if (visualization == Visualization::SLICING)
+          glTexCoord1d(mesh.point(v) | slicing_dir * slicing_scaling);
         glNormal3dv(mesh.normal(v).data());
         glVertex3dv(mesh.point(v).data());
       }
@@ -646,7 +589,31 @@ void MyViewer::postSelection(const QPoint &p) {
   axes.selected_axis = -1;
 }
 
+//template<class MeshT, class SubDivT>
+//void loop_subdevide(MeshT & mesh){
+//    SubDivT loop;
+//    loop.attach(mesh);
+//    loop(1);
+//    loop.detach();
+//}
+
+template<class MeshT>
+void loop_subdevide(MeshT & mesh){
+    OpenMesh::Subdivider::Uniform::LoopT<MeshT> loop;
+    loop.attach(mesh);
+    loop(1);
+    loop.detach();
+}
+template<class MeshT>
+void sqrt_subdevide(MeshT & mesh){
+    OpenMesh::Subdivider::Uniform::Sqrt3T<MeshT> loop;
+    loop.attach(mesh);
+    loop(1);
+    loop.detach();
+}
+
 void MyViewer::keyPressEvent(QKeyEvent *e) {
+
   if (e->modifiers() == Qt::NoModifier)
     switch (e->key()) {
     case Qt::Key_R:
@@ -672,7 +639,12 @@ void MyViewer::keyPressEvent(QKeyEvent *e) {
       update();
       break;
     case Qt::Key_L:
-      visualization = Visualization::SLICING;
+//      visualization = Visualization::SLICING;
+      loop_subdevide<MyMesh>(mesh);
+      update();
+      break;
+    case Qt::Key_3:
+      sqrt_subdevide<MyMesh>(mesh);
       update();
       break;
     case Qt::Key_I:
@@ -699,11 +671,6 @@ void MyViewer::keyPressEvent(QKeyEvent *e) {
       break;
     case Qt::Key_F:
       fairMesh();
-      update();
-      break;
-    case Qt::Key_X:
-      visualization = Visualization::TASK_18;
-      find_trangles_18();
       update();
       break;
     default:

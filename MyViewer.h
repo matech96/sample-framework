@@ -29,7 +29,6 @@ public:
   bool openBezier(const std::string &filename, bool update_view = true);
   bool saveBezier(const std::string &filename);
 
-  void find_trangles_18();
 signals:
   void startComputation(QString message);
   void midComputation(int percent);
@@ -94,7 +93,7 @@ private:
   // Visualization
   double mean_min, mean_max, cutoff_ratio;
   bool show_control_points, show_solid, show_wireframe;
-  enum class Visualization { PLAIN, MEAN, SLICING, ISOPHOTES, TASK_18 } visualization;
+  enum class Visualization { PLAIN, MEAN, SLICING, ISOPHOTES } visualization;
   GLuint isophote_texture, environment_texture, current_isophote_texture, slicing_texture;
   Vector slicing_dir;
   double slicing_scaling;
@@ -106,11 +105,6 @@ private:
     Vec position, grabbed_pos, original_pos;
   } axes;
   std::string last_filename;
-
-  // 18
-  QList<OpenMesh::FaceHandle> plot_face;
-  OpenMesh::FaceHandle max_face;
-  QWidget* parent;
 };
 
 #include "MyViewer.hpp"

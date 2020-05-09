@@ -61,11 +61,6 @@ MyWindow::MyWindow(QApplication *parent) :
   visMenu->addAction(slicingAction);
 }
 
-void MyWindow::print_status(QString text)
-{
-    this->statusBar()->showMessage(text);
-}
-
 MyWindow::~MyWindow() {
 }
 

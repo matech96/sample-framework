@@ -612,6 +612,51 @@ void sqrt_subdevide(MeshT & mesh){
     loop.detach();
 }
 
+void MyViewer::expand_bezier()
+{
+    std::vector<Vec> new_control_points = {};
+    int n = degree[0] + 1;
+    int m = degree[1] + 1;
+    new_control_points.resize((n) * (m+1));
+    for (size_t i = 0; i < n; ++i)
+    {
+        new_control_points[i * (m+1)] = control_points[i*m];
+        for (size_t j = 0; j < m; ++j)
+        {
+            int index = (i * m) + j;
+            int index_m = (i * m) + j + 1;
+            if(j+1 < m){
+                int new_index_n = (i * (m+1)) + j+ 1;
+                new_control_points[new_index_n] = (((j+1) * control_points[index]) + ((m-j-1) * control_points[index_m])) / (m);
+            }
+        }
+        new_control_points[i * (m+1) + (m)] = control_points[i*m + (m-1)];
+
+    }
+    control_points = new_control_points;
+    degree[1]++;
+    m = degree[1] + 1;
+    new_control_points.resize((n+1) * (m));
+    for (size_t j = 0; j < m; ++j)
+    {
+        new_control_points[j] = control_points[j];
+        for (size_t i = 0; i < n; ++i)
+        {
+            int index = (i * m) + j;
+            int index_m = ((i+1) * m) + j;
+            if(i+1 < n){
+                int new_index_n = ((i+1) * (m)) + j;
+                new_control_points[new_index_n] = (((i+1) * control_points[index]) + ((n-i-1) * control_points[index_m])) / (n);
+            }
+        }
+        new_control_points[n * (m) + j] = control_points[(n-1)*m + j];
+
+    }
+    control_points = new_control_points;
+    degree[0]++;
+    updateMesh(false);
+}
+
 void MyViewer::keyPressEvent(QKeyEvent *e) {
 
   if (e->modifiers() == Qt::NoModifier)
@@ -653,74 +698,12 @@ void MyViewer::keyPressEvent(QKeyEvent *e) {
       update();
       break;
     case Qt::Key_E:
-//      visualization = Visualization::ISOPHOTES;
-//      current_isophote_texture = environment_texture;
-    {
-        std::vector<Vec> new_control_points = {};
-        int n = degree[0] + 1;
-        int m = degree[1] + 1;
-        new_control_points.resize((n) * (m+1)); // +1
-//        for (size_t i = 0; i < n; ++i){
-//            for (size_t j = 0; j < m; ++j){
-//                new_control_points[i*m + j] = control_points[i*m + j];
-//            }
-//        }
-        for (size_t i = 0; i < n; ++i)
-        {
-//            new_control_points[i][0] = control_points[i][0];
-            new_control_points[i * (m+1)] = control_points[i*m];
-            for (size_t j = 0; j < m; ++j)
-            {
-//                [i][j];
-                int index = (i * m) + j;
-//                int index_n = ((i+1) * n) + j;
-//                [i][j+1]
-                int index_m = (i * m) + j + 1;
-                if(j+1 < m){
-//                    [i][j+1] //new
-                    int new_index_n = (i * (m+1)) + j+ 1;
-                    new_control_points[new_index_n] = (((j+1) * control_points[index]) + ((m-j-1) * control_points[index_m])) / (m);
-                }
-                //              if(j+1 < m){
-
-                //              }
-            }
-//            new_control_points[i][m] = control_points[i][m-1];
-            new_control_points[i * (m+1) + (m)] = control_points[i*m + (m-1)];
-
+        if (model_type == ModelType::BEZIER_SURFACE){
+            expand_bezier();
+        } else{
+            visualization = Visualization::ISOPHOTES;
+            current_isophote_texture = environment_texture;
         }
-        control_points = new_control_points;
-        degree[1]++;
-        m = degree[1] + 1;
-        new_control_points.resize((n+1) * (m));
-        for (size_t j = 0; j < m; ++j)
-        {
-//            new_control_points[0][j] = control_points[0][j];
-            new_control_points[j] = control_points[j];
-            for (size_t i = 0; i < n; ++i)
-            {
-//                [i][j];
-                int index = (i * m) + j;
-//                int index_n = ((i+1) * n) + j;
-//                [i+1][j]
-                int index_m = ((i+1) * m) + j;
-                if(i+1 < n){
-//                    [i+1][j] //new
-                    int new_index_n = ((i+1) * (m)) + j;
-                    new_control_points[new_index_n] = (((i+1) * control_points[index]) + ((n-i-1) * control_points[index_m])) / (n);
-                }
-                //              if(j+1 < m){
-
-                //              }
-            }
-//            new_control_points[n][j] = control_points[n-1][j];
-            new_control_points[n * (m) + j] = control_points[(n-1)*m + j];
-
-        }
-        control_points = new_control_points;
-        degree[0]++;
-        updateMesh(false);
-    }
       update();
       break;
     case Qt::Key_C:

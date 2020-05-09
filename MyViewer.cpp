@@ -691,6 +691,34 @@ void MyViewer::keyPressEvent(QKeyEvent *e) {
         }
         control_points = new_control_points;
         degree[1]++;
+        m = degree[1] + 1;
+        new_control_points.resize((n+1) * (m));
+        for (size_t j = 0; j < m; ++j)
+        {
+//            new_control_points[0][j] = control_points[0][j];
+            new_control_points[j] = control_points[j];
+            for (size_t i = 0; i < n; ++i)
+            {
+//                [i][j];
+                int index = (i * m) + j;
+//                int index_n = ((i+1) * n) + j;
+//                [i+1][j]
+                int index_m = ((i+1) * m) + j;
+                if(i+1 < n){
+//                    [i+1][j] //new
+                    int new_index_n = ((i+1) * (m)) + j;
+                    new_control_points[new_index_n] = (((i+1) * control_points[index]) + ((n-i-1) * control_points[index_m])) / (n);
+                }
+                //              if(j+1 < m){
+
+                //              }
+            }
+//            new_control_points[n][j] = control_points[n-1][j];
+            new_control_points[n * (m) + j] = control_points[(n-1)*m + j];
+
+        }
+        control_points = new_control_points;
+        degree[0]++;
         updateMesh(false);
     }
       update();

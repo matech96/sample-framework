@@ -66,6 +66,8 @@ private:
   static void bernsteinAll(size_t n, double u, std::vector<double> &coeff);
   void generateMesh();
   void expand_bezier();
+  void loop_subdevide();
+  void sqrt_subdevide();
 
   // Visualization
   void setupCamera();
@@ -90,6 +92,7 @@ private:
   // Bezier
   size_t degree[2];
   std::vector<Vec> control_points;
+//  std::vector<std::vector<Vec>> uv2vh;
 
   // Visualization
   double mean_min, mean_max, cutoff_ratio;

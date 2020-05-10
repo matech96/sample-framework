@@ -445,9 +445,13 @@ void MyViewer::draw() {
     for (auto f : mesh.faces()) {
       glBegin(GL_POLYGON);
       for (auto v : mesh.fv_range(f)) {
-        if (visualization == Visualization::MEAN)
-          glColor3dv(meanMapColor(mesh.data(v).mean));
-        else if (visualization == Visualization::SLICING)
+        if (visualization == Visualization::MEAN){
+//          glColor3dv(meanMapColor(mesh.data(v).mean));
+//            glColor3dv(qglviewer::Vec(mesh.color(v).data()));
+            auto color = mesh.color(v).data();
+            int u = color[0];
+            int v = color[0];
+        } else if (visualization == Visualization::SLICING)
           glTexCoord1d(mesh.point(v) | slicing_dir * slicing_scaling);
         glNormal3dv(mesh.normal(v).data());
         glVertex3dv(mesh.point(v).data());
@@ -597,19 +601,19 @@ void MyViewer::postSelection(const QPoint &p) {
 //    loop.detach();
 //}
 
-template<class MeshT>
-void loop_subdevide(MeshT & mesh){
-    OpenMesh::Subdivider::Uniform::LoopT<MeshT> loop;
+void MyViewer::loop_subdevide(){
+    OpenMesh::Subdivider::Uniform::LoopT<MyMesh> loop;
     loop.attach(mesh);
     loop(1);
     loop.detach();
+    updateMesh(false);
 }
-template<class MeshT>
-void sqrt_subdevide(MeshT & mesh){
-    OpenMesh::Subdivider::Uniform::Sqrt3T<MeshT> loop;
+void MyViewer::sqrt_subdevide(){
+    OpenMesh::Subdivider::Uniform::Sqrt3T<MyMesh> loop;
     loop.attach(mesh);
     loop(1);
     loop.detach();
+    updateMesh(false);
 }
 
 void MyViewer::expand_bezier()
@@ -685,11 +689,11 @@ void MyViewer::keyPressEvent(QKeyEvent *e) {
       break;
     case Qt::Key_L:
 //      visualization = Visualization::SLICING;
-      loop_subdevide<MyMesh>(mesh);
+      loop_subdevide();
       update();
       break;
     case Qt::Key_3:
-      sqrt_subdevide<MyMesh>(mesh);
+      sqrt_subdevide();
       update();
       break;
     case Qt::Key_I:
@@ -770,6 +774,7 @@ void MyViewer::bernsteinAll(size_t n, double u, std::vector<double> &coeff) {
 
 void MyViewer::generateMesh() {
   size_t resolution = 30;
+//  mesh_points_uv.resize(resolution);
 
   mesh.clear();
   std::vector<MyMesh::VertexHandle> handles, tri;
@@ -782,11 +787,16 @@ void MyViewer::generateMesh() {
     for (size_t j = 0; j < resolution; ++j) {
       double v = (double)j / (double)(resolution - 1);
       bernsteinAll(m, v, coeff_v);
-      Vec p(0.0, 0.0, 0.0);
+      Vec p(0.0, 0.0, 0.0);      
       for (size_t k = 0, index = 0; k <= n; ++k)
         for (size_t l = 0; l <= m; ++l, ++index)
           p += control_points[index] * coeff_u[k] * coeff_v[l];
-      handles.push_back(mesh.add_vertex(Vector(static_cast<double *>(p))));
+      auto vh = mesh.add_vertex(Vector(static_cast<double *>(p)));
+      handles.push_back(vh);
+      mesh.request_vertex_colors();
+//      mesh.release_vertex_colors();
+      mesh.set_color(vh, {u, v, 0});
+//      mesh_points_uv.push_back({qglviewer::Vec(u, v, 0)});
     }
   }
   for (size_t i = 0; i < resolution - 1; ++i)

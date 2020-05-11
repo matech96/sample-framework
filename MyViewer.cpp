@@ -419,20 +419,20 @@ void MyViewer::init() {
 }
 
 Vec MyViewer::su(double u, double v) {
-    int n = degree[0] + 1, m = degree[1] + 1;
-    Vec sum(0.0, 0.0, 0.0);
+    int n = degree[0] + 1;
+    int m = degree[1] + 1;
+    Vec res(0.0, 0.0, 0.0);
     std::vector<double> coeff_u, coeff_v;
     bernsteinAll(n - 2, u, coeff_u);
     bernsteinAll(m - 1, v, coeff_v);
     for (int i = 0; i < n-1; i++) {
         for (int j = 0; j < m; j++) {
-            sum += (control_points[(i + 1)*m + j] - control_points[i*m +j]) * coeff_u[i] * coeff_v[j] * n;
+            int index = i*m +j;
+            int index_u = (i + 1)*m + j;
+            res += (control_points[index_u] - control_points[index]) * coeff_u[i] * coeff_v[j] * n;
         }
     }
-    if (sum*sum <= 0.0) {
-        n++;
-    }
-    return sum;
+    return res;
 }
 
 Vec MyViewer::sv(double u, double v) {
@@ -443,7 +443,9 @@ Vec MyViewer::sv(double u, double v) {
     bernsteinAll(m-2, v, coeff_v);
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < m-1; j++) {
-            sum += (control_points[i*m + j+1] - control_points[i*m + j]) * coeff_u[i] * coeff_v[j] * m;
+            int index = i*m +j;
+            int index_v = i*m + j + 1;
+            sum += (control_points[index_v] - control_points[index]) * coeff_u[i] * coeff_v[j] * m;
         }
     }
     return sum;
@@ -457,7 +459,10 @@ Vec MyViewer::suu(double u, double v) {
     bernsteinAll(m-1, v, coeff_v);
     for (int i = 0; i < n-2; i++) {
         for (int j = 0; j < m; j++) {
-            sum += (control_points[(i + 2)*m + j] - 2 * control_points[(i+1)*m + j] + control_points[i*m + j]) * coeff_u[i] * coeff_v[j] * n * (n-1);
+            int index = i*m +j;
+            int index_uu = (i + 2)*m + j;
+            int index_u = (i + 1)*m + j;
+            sum += (control_points[index_uu] - 2 * control_points[index_u] + control_points[index]) * coeff_u[i] * coeff_v[j] * n * (n-1);
         }
     }
     return sum;
@@ -471,7 +476,11 @@ Vec MyViewer::suv(double u, double v) {
     bernsteinAll(m - 2, v, coeff_v);
     for (int i = 0; i < n-1; i++) {
         for (int j = 0; j < m-1; j++) {
-            sum += (control_points[(i+1)*m + j + 1] - control_points[(i+1)*m + j] - control_points[i*m + j + 1] + control_points[i*m + j]) * coeff_u[i] * coeff_v[j] * m;
+            int index = i*m +j;
+            int index_uv = (i + 1)*m + j + 1;
+            int index_u = (i + 1)*m + j;
+            int index_v = i*m + j + 1;
+            sum += (control_points[index_uv] - control_points[index_u] - control_points[index_v] + control_points[index]) * coeff_u[i] * coeff_v[j] * m;
         }
     }
     return sum;
@@ -485,7 +494,10 @@ Vec MyViewer::svv(double u, double v) {
     bernsteinAll(m - 3, v, coeff_v);
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < m-2; j++) {
-            sum += (control_points[i*m + j + 2] - 2 * control_points[i*m + j + 1] + control_points[i*m + j]) * coeff_u[i] * coeff_v[j] * m * (m-1);
+            int index = i*m +j;
+            int index_vv = i*m + j + 2;
+            int index_v = i*m + j + 1;
+            sum += (control_points[index_vv] - 2 * control_points[index_v] + control_points[index]) * coeff_u[i] * coeff_v[j] * m * (m-1);
         }
     }
     return sum;
@@ -501,18 +513,18 @@ double MyViewer::calculateMeanCurvature(double u, double v) {
     suv_res = suv(u, v);
     svv_res = svv(u, v);
 
-    Vec normal = su_res^sv_res;
-    normal.normalize();
-
     double E, F, G, L, M, N;
     E = su_res * su_res;
     F = su_res * sv_res;
     G = sv_res * sv_res;
+    Vec normal = su_res^sv_res;
+    normal.normalize();
     L = normal * suu_res;
     M = normal * suv_res;
     N = normal * svv_res;
 
-    return (N*E - 2.0*M*F + L*G) / (2.0 * (E*G - F*F));
+    return (N*E - 2.0*M*F + L*G) / (2.0 * (E*G - F*F)); // average
+//    return (L*N - M*M) / (E*G - F*F); // gauss
 }
 
 void MyViewer::draw() {
@@ -544,29 +556,9 @@ void MyViewer::draw() {
       for (auto v : mesh.fv_range(f)) {
         if (visualization == Visualization::MEAN){
 //          glColor3dv(meanMapColor(mesh.data(v).mean));
-//            glColor3dv(qglviewer::Vec(mesh.color(v).data()));
-//            auto color = mesh.color(v).data();
-//            int n = degree[0];
-//            int m = degree[1];
-//            int u = color[0];
-//            int v = color[0];
             int idx = v.idx();
             auto uv = mesh_points_uv[idx];
-//            double u = u_values[idx];
-//            double v = v_values[idx];
             glColor3dv(meanMapColor(calculateMeanCurvature(uv[0], uv[1])));
-//            std::vector<double> coeff_u, coeff_v;
-//            bernsteinAll(n-1, u, coeff_u);
-//            bernsteinAll(m-1, v, coeff_v);
-//            Vec du(0.0, 0.0, 0.0);
-//            for (size_t k = 0; k < n; ++k){ // u
-//              for (size_t l = 0; l < m; ++l){ // v
-//                  int index = (k * m) + l;
-//                  int index_u = ((k + 1) * m) + l;
-//                  int index_v = (k * m) + l + 1;
-//                  du += control_points[index] * coeff_u[k] * coeff_v[l];
-//              }
-//            }
         } else if (visualization == Visualization::SLICING)
           glTexCoord1d(mesh.point(v) | slicing_dir * slicing_scaling);
         glNormal3dv(mesh.normal(v).data());
@@ -897,8 +889,6 @@ void MyViewer::generateMesh() {
   size_t n = degree[0], m = degree[1];
 
   mesh_points_uv.clear();
-//  u_values.clear();
-//  v_values.clear();
 
   std::vector<double> coeff_u, coeff_v;
   for (size_t i = 0; i < resolution; ++i) {
@@ -913,11 +903,6 @@ void MyViewer::generateMesh() {
           p += control_points[index] * coeff_u[k] * coeff_v[l];
       auto vh = mesh.add_vertex(Vector(static_cast<double *>(p)));
       handles.push_back(vh);
-//      mesh.request_vertex_colors();
-//      mesh.release_vertex_colors();
-//      mesh.set_color(vh, {u, v, 0});
-//      u_values.push_back(u);
-//      v_values.push_back(v);
       mesh_points_uv.push_back({qglviewer::Vec(u, v, 0)});
     }
   }

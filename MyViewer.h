@@ -68,6 +68,12 @@ private:
   void expand_bezier();
   void loop_subdevide();
   void sqrt_subdevide();
+  Vec su(double u, double v);
+  Vec sv(double u, double v);
+  Vec suu(double u, double v);
+  Vec svv(double u, double v);
+  Vec suv(double u, double v);
+  double calculateMeanCurvature(double u, double v);
 
   // Visualization
   void setupCamera();
@@ -92,7 +98,9 @@ private:
   // Bezier
   size_t degree[2];
   std::vector<Vec> control_points;
-//  std::vector<std::vector<Vec>> uv2vh;
+//  std::vector<double> u_values;
+//  std::vector<double> v_values;
+  std::vector<Vec> mesh_points_uv;
 
   // Visualization
   double mean_min, mean_max, cutoff_ratio;

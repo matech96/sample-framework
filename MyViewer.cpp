@@ -116,30 +116,39 @@ double MyViewer::voronoiWeight(MyViewer::MyMesh::HalfedgeHandle in_he) {
 
 #ifndef BETTER_MEAN_CURVATURE
 void MyViewer::updateMeanCurvature(bool update_min_max) {
-  std::map<MyMesh::FaceHandle, double> face_area;
-  std::map<MyMesh::VertexHandle, double> vertex_area;
+    if(model_type != ModelType::BEZIER_SURFACE){
+        std::map<MyMesh::FaceHandle, double> face_area;
+        std::map<MyMesh::VertexHandle, double> vertex_area;
 
-  for (auto f : mesh.faces())
-    face_area[f] = mesh.calc_sector_area(mesh.halfedge_handle(f));
+        for (auto f : mesh.faces())
+            face_area[f] = mesh.calc_sector_area(mesh.halfedge_handle(f));
 
-  // Compute triangle strip areas
-  for (auto v : mesh.vertices()) {
-    vertex_area[v] = 0;
-    mesh.data(v).mean = 0;
-    for (auto f : mesh.vf_range(v))
-      vertex_area[v] += face_area[f];
-    vertex_area[v] /= 3.0;
-  }
+        // Compute triangle strip areas
+        for (auto v : mesh.vertices()) {
+            vertex_area[v] = 0;
+            mesh.data(v).mean = 0;
+            for (auto f : mesh.vf_range(v))
+                vertex_area[v] += face_area[f];
+            vertex_area[v] /= 3.0;
+        }
 
-  // Compute mean values using dihedral angles
-  for (auto v : mesh.vertices()) {
-    for (auto h : mesh.vih_range(v)) {
-      auto vec = mesh.calc_edge_vector(h);
-      double angle = mesh.calc_dihedral_angle(h); // signed; returns 0 at the boundary
-      mesh.data(v).mean += angle * vec.norm();
+        // Compute mean values using dihedral angles
+        for (auto v : mesh.vertices()) {
+            for (auto h : mesh.vih_range(v)) {
+                auto vec = mesh.calc_edge_vector(h);
+                double angle = mesh.calc_dihedral_angle(h); // signed; returns 0 at the boundary
+                mesh.data(v).mean += angle * vec.norm();
+            }
+            mesh.data(v).mean *= 0.25 / vertex_area[v];
+        }
+
+    } else {
+        for (auto v : mesh.vertices()) {
+            int idx = v.idx();
+            auto uv = mesh_points_uv[idx];
+            mesh.data(v).mean = calculateMeanCurvature(uv[0], uv[1]);
+        }
     }
-    mesh.data(v).mean *= 0.25 / vertex_area[v];
-  }
 
   if (update_min_max)
     updateMeanMinMax();
@@ -429,7 +438,7 @@ Vec MyViewer::su(double u, double v) {
         for (int j = 0; j < m; j++) {
             int index = i*m +j;
             int index_u = (i + 1)*m + j;
-            res += (control_points[index_u] - control_points[index]) * coeff_u[i] * coeff_v[j] * n;
+            res += (control_points[index_u] - control_points[index]) * coeff_u[i] * coeff_v[j] * (n-1);
         }
     }
     return res;
@@ -445,7 +454,7 @@ Vec MyViewer::sv(double u, double v) {
         for (int j = 0; j < m-1; j++) {
             int index = i*m +j;
             int index_v = i*m + j + 1;
-            sum += (control_points[index_v] - control_points[index]) * coeff_u[i] * coeff_v[j] * m;
+            sum += (control_points[index_v] - control_points[index]) * coeff_u[i] * coeff_v[j] * (m-1);
         }
     }
     return sum;
@@ -462,7 +471,7 @@ Vec MyViewer::suu(double u, double v) {
             int index = i*m +j;
             int index_uu = (i + 2)*m + j;
             int index_u = (i + 1)*m + j;
-            sum += (control_points[index_uu] - 2 * control_points[index_u] + control_points[index]) * coeff_u[i] * coeff_v[j] * n * (n-1);
+            sum += (control_points[index_uu] - 2 * control_points[index_u] + control_points[index]) * coeff_u[i] * coeff_v[j] * (n-1) * (n-2);
         }
     }
     return sum;
@@ -480,7 +489,7 @@ Vec MyViewer::suv(double u, double v) {
             int index_uv = (i + 1)*m + j + 1;
             int index_u = (i + 1)*m + j;
             int index_v = i*m + j + 1;
-            sum += (control_points[index_uv] - control_points[index_u] - control_points[index_v] + control_points[index]) * coeff_u[i] * coeff_v[j] * m;
+            sum += (control_points[index_uv] - control_points[index_u] - control_points[index_v] + control_points[index]) * coeff_u[i] * coeff_v[j] * (m-1) * (n-1);
         }
     }
     return sum;
@@ -497,7 +506,7 @@ Vec MyViewer::svv(double u, double v) {
             int index = i*m +j;
             int index_vv = i*m + j + 2;
             int index_v = i*m + j + 1;
-            sum += (control_points[index_vv] - 2 * control_points[index_v] + control_points[index]) * coeff_u[i] * coeff_v[j] * m * (m-1);
+            sum += (control_points[index_vv] - 2 * control_points[index_v] + control_points[index]) * coeff_u[i] * coeff_v[j] * (m-1) * (m-2);
         }
     }
     return sum;
@@ -555,10 +564,7 @@ void MyViewer::draw() {
       glBegin(GL_POLYGON);
       for (auto v : mesh.fv_range(f)) {
         if (visualization == Visualization::MEAN){
-//          glColor3dv(meanMapColor(mesh.data(v).mean));
-            int idx = v.idx();
-            auto uv = mesh_points_uv[idx];
-            glColor3dv(meanMapColor(calculateMeanCurvature(uv[0], uv[1])));
+          glColor3dv(meanMapColor(mesh.data(v).mean));
         } else if (visualization == Visualization::SLICING)
           glTexCoord1d(mesh.point(v) | slicing_dir * slicing_scaling);
         glNormal3dv(mesh.normal(v).data());
@@ -796,8 +802,8 @@ void MyViewer::keyPressEvent(QKeyEvent *e) {
       update();
       break;
     case Qt::Key_L:
-//      visualization = Visualization::SLICING;
-      loop_subdevide();
+      visualization = Visualization::SLICING;
+//      loop_subdevide();
       update();
       break;
     case Qt::Key_3:
@@ -851,7 +857,15 @@ void MyViewer::keyPressEvent(QKeyEvent *e) {
       slicing_dir = Vector(static_cast<double *>(camera()->viewDirection()));
       update();
       break;
-    } else
+    }
+  else if (e->modifiers() == Qt::ShiftModifier)
+      switch (e->key()) {
+      case Qt::Key_L:
+        loop_subdevide();
+        update();
+        break;
+      }
+  else
     QGLViewer::keyPressEvent(e);
 }
 

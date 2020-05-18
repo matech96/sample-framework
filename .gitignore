@@ -8,3 +8,4 @@ moc_*
 qrc_*
 *.stash
 Makefile
+*.zip
